@@ -1,0 +1,23 @@
+services:
+  freecad:
+    image: lscr.io/linuxserver/freecad:latest
+    container_name: freecad
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Paris
+    volumes:
+      - ${BACKUP_DIR}/freecad:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.freecad.rule=Host(`cad.anode.com`)"
+      - "traefik.http.routers.freecad.entrypoints=websecure"
+      - "traefik.http.routers.freecad.tls=true"
+      - "traefik.http.services.freecad.loadbalancer.server.port=3000"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

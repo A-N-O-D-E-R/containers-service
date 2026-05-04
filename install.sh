@@ -5,7 +5,7 @@ script_path=$(realpath "$0")
 dir=$(dirname "$script_path")
 systemd_dest="/etc/systemd/system"
 
-EXCLUDED=(traefik db)
+EXCLUDED=(traefik db cache)
 
 check_os() {
   if [[ "$(uname -s)" != "Linux" ]]; then
@@ -68,6 +68,11 @@ needs_db() {
   grep -ql "shared-db" "$dir/$app"/compose-*.yml 2>/dev/null
 }
 
+needs_cache() {
+  local app="$1"
+  grep -ql "shared-cache" "$dir/$app"/compose-*.yml 2>/dev/null
+}
+
 link_units() {
   for unit in "$dir"/*.service "$dir"/*.target; do
     [[ -e "$unit" ]] || continue
@@ -91,18 +96,17 @@ generate_overrides() {
     drop_in="$systemd_dest/anode-container@${app}.service.d/order.conf"
     mkdir -p "$(dirname "$drop_in")"
 
-    if needs_db "$app"; then
-      cat > "$drop_in" <<EOF
-[Unit]
-After=anode-container@traefik.service anode-container@db.service
-Requires=anode-container@db.service
-EOF
-    else
-      cat > "$drop_in" <<EOF
-[Unit]
-After=anode-container@traefik.service
-EOF
-    fi
+    local after="anode-container@traefik.service"
+    local requires=""
+
+    needs_db "$app" && after+=" anode-container@db.service" && requires+=" anode-container@db.service"
+    needs_cache "$app" && after+=" anode-container@cache.service" && requires+=" anode-container@cache.service"
+
+    {
+      echo "[Unit]"
+      echo "After=${after}"
+      [[ -n "$requires" ]] && echo "Requires=${requires}"
+    } > "$drop_in"
 
     echo "wrote $drop_in"
   done

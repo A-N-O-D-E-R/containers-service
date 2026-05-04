@@ -1,0 +1,22 @@
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=https://search.anode.com/
+      - SEARXNG_REDIS_URL=redis://shared-cache:6379/0
+    volumes:
+      - ./settings-local.yaml:/etc/searxng/settings.yml
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.searxng.rule=Host(`search.anode.com`)"
+      - "traefik.http.routers.searxng.entrypoints=websecure"
+      - "traefik.http.routers.searxng.tls=true"
+      - "traefik.http.services.searxng.loadbalancer.server.port=8080"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

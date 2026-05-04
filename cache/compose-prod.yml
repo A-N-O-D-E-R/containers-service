@@ -1,0 +1,13 @@
+services:
+  shared-cache:
+    image: redis:7-alpine
+    container_name: shared-cache
+    restart: unless-stopped
+    volumes:
+      - ${BACKUP_DIR}/cache:/data
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

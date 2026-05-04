@@ -46,6 +46,9 @@ setup_local_requirements() {
     "git.anode.com"
     "s3.anode.com"
     "portainer.anode.com"
+    "note.anode.com"
+    "search.anode.com"
+    "cad.anode.com"
   )
 
   if ! command -v mkcert >/dev/null 2>&1; then
@@ -122,7 +125,7 @@ if [[ "$app" == "*" ]]; then
     exit 1
   fi
   # Enforce start order: traefik → db → rest (reversed for stop)
-  priority=(traefik db)
+  priority=(traefik db cache)
   ordered=()
   for p in "${priority[@]}"; do
     for a in "${all_apps[@]}"; do
