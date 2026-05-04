@@ -1,0 +1,14 @@
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+replication_factor = 1
+db_engine = "lmdb"
+
+rpc_bind_addr = "[::]:3901"
+rpc_secret = "987baeec4546729be3b65a33c727970d5480b7ef4f956294285ad19fcc73be9e"
+
+[s3_api]
+api_bind_addr = "[::]:3900"
+s3_region = "garage"
+root_domain = "s3.anode.com"
+
+
