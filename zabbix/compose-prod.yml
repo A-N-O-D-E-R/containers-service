@@ -1,0 +1,39 @@
+services:
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:latest
+    container_name: zabbix-server
+    restart: unless-stopped
+    environment:
+      - DB_SERVER_HOST=shared-db
+      - POSTGRES_DB=${ZABBIX_DB_NAME}
+      - POSTGRES_USER=${ZABBIX_DB_USER}
+      - POSTGRES_PASSWORD=${ZABBIX_DB_PASSWORD}
+    networks:
+      - anode-shared-network
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    container_name: zabbix-web
+    restart: unless-stopped
+    environment:
+      - DB_SERVER_HOST=shared-db
+      - POSTGRES_DB=${ZABBIX_DB_NAME}
+      - POSTGRES_USER=${ZABBIX_DB_USER}
+      - POSTGRES_PASSWORD=${ZABBIX_DB_PASSWORD}
+      - ZBX_SERVER_HOST=zabbix-server
+      - PHP_TZ=Europe/Paris
+    depends_on:
+      - zabbix-server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zabbix.rule=Host(`monitor.anode.com`)"
+      - "traefik.http.routers.zabbix.entrypoints=websecure"
+      - "traefik.http.routers.zabbix.tls=true"
+      - "traefik.http.routers.zabbix.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zabbix.loadbalancer.server.port=8080"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

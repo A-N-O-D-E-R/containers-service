@@ -1,4 +1,5 @@
-.env
+.env-*
 .backup
 .claude
 certs
+traefik/acme.json

@@ -1,0 +1,19 @@
+services:
+  shared-db:
+    image: postgres:16
+    container_name: shared-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=anode
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=${ADMIN_DB_PASSWORD}
+      - CREDENTIALS=${CREDENTIALS}
+    volumes:
+      - ${BACKUP_DIR}/db:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

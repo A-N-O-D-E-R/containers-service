@@ -4,7 +4,7 @@ replication_factor = 1
 db_engine = "lmdb"
 
 rpc_bind_addr = "[::]:3901"
-rpc_secret = "987baeec4546729be3b65a33c727970d5480b7ef4f956294285ad19fcc73be9e"
+rpc_secret = "${GARAGE_RPC_SECRET}"
 
 [s3_api]
 api_bind_addr = "[::]:3900"

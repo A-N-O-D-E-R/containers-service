@@ -1,0 +1,18 @@
+[Unit]
+Description=Anode container - %i
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+Environment=ENV=local
+ExecStart=/usr/local/bin/anode-container start %i ${ENV}
+ExecStop=/usr/local/bin/anode-container stop %i ${ENV}
+
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
