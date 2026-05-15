@@ -1,0 +1,30 @@
+services:
+  deluge:
+    image: lscr.io/linuxserver/deluge:latest
+    container_name: deluge
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+      DELUGE_LOGLEVEL: error
+    volumes:
+      - ${BACKUP_DIR}/config/deluge:/config
+      - ${BACKUP_DIR}/downloads:/downloads
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 58846:58846 #optional
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deluge.rule=Host(`deluge.anode.com`)"
+      - "traefik.http.routers.deluge.entrypoints=websecure"
+      - "traefik.http.routers.deluge.tls=true"
+      - "traefik.http.routers.deluge.service=deluge"
+      - "traefik.http.services.deluge.loadbalancer.server.port=8112"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

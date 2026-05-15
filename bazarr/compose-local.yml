@@ -1,0 +1,26 @@
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+    volumes:
+      - ${BACKUP_DIR}/config/bazarr:/config
+      - ${BACKUP_DIR}/movies:/movies #optional
+      - ${BACKUP_DIR}/tvseries:/tv #optional
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.anode.com`)"
+      - "traefik.http.routers.bazarr.entrypoints=websecure"
+      - "traefik.http.routers.bazarr.tls=true"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+    restart: unless-stopped
+    networks:
+      - anode-shared-network
+
+
+networks:
+  anode-shared-network:
+    external: true

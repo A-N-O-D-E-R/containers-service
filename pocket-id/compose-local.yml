@@ -4,14 +4,14 @@ services:
     container_name: pocket-id
     restart: unless-stopped
     environment:
-      - APP_URL=https://sso.anode.com
+      - APP_URL=https://id.anode.com
       - JWT_SECRET=${JWT_SECRET}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
-      - ${BACKUP_DIR}/sso:/data
+      - ${BACKUP_DIR}/pocket-id:/data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pocket.rule=Host(`sso.anode.com`)"
+      - "traefik.http.routers.pocket.rule=Host(`id.anode.com`)"
       - "traefik.http.routers.pocket.entrypoints=websecure"
       - "traefik.http.routers.pocket.tls=true"
       - "traefik.http.services.pocket.loadbalancer.server.port=1411"

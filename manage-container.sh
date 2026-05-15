@@ -42,6 +42,7 @@ setup_local_requirements() {
   local cert_dir="$CERTS_DIR"
   local hosts=(
     "sso.anode.com"
+    "id.anode.com"
     "monitor.anode.com"
     "git.anode.com"
     "s3.anode.com"
@@ -49,6 +50,19 @@ setup_local_requirements() {
     "note.anode.com"
     "search.anode.com"
     "cad.anode.com"
+    "deluge.anode.com"
+    "sabnzbd.anode.com"
+    "zabbix.anode.com"
+    "rss.anode.com"
+    "unifi.anode.com"
+    "sonarr.anode.com"
+    "radarr.anode.com"
+    "bazarr.anode.com"
+    "overseerr.anode.com"
+    "lidarr.anode.com"
+    "prowlarr.anode.com"
+    "homeassistant.anode.com"
+    "tv.anode.com"
   )
 
   if ! command -v mkcert >/dev/null 2>&1; then

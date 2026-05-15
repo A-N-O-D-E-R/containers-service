@@ -4,3 +4,8 @@ tls:
       defaultCertificate:
         certFile: /certs/_wildcard.anode.com+1.pem
         keyFile: /certs/_wildcard.anode.com+1-key.pem
+
+http:
+  serversTransports:
+    unifi-transport:
+      insecureSkipVerify: true

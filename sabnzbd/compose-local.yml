@@ -1,0 +1,24 @@
+services:
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    container_name: sabnzbd
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    volumes:
+      - ${BACKUP_DIR}/config/sabnzbd:/config
+      - ${BACKUP_DIR}/sabnzbd/incomplete-downloads:/data:/incomplete-downloads #optional
+      - ${BACKUP_DIR}/downloads:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sabnzbd.rule=Host(`sabnzbd.anode.com`)"
+      - "traefik.http.routers.sabnzbd.entrypoints=websecure"
+      - "traefik.http.routers.sabnzbd.tls=true"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

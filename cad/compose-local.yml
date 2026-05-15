@@ -4,11 +4,11 @@ services:
     container_name: freecad
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/Paris
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
     volumes:
-      - ${BACKUP_DIR}/freecad:/config
+      - ${BACKUP_DIR}/config/freecad:/config
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.freecad.rule=Host(`cad.anode.com`)"

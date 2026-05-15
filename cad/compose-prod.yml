@@ -4,9 +4,9 @@ services:
     container_name: freecad
     restart: unless-stopped
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Europe/Paris
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
     volumes:
       - ${BACKUP_DIR}/freecad:/config
     labels:

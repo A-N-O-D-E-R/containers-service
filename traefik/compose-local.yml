@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v3.3
+    image: ghcr.io/traefik/traefik:3.6
     container_name: traefik
     restart: unless-stopped
     command:
@@ -14,6 +14,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - DOCKER_API_VERSION=1.41
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik-local.yaml:/etc/traefik/dynamic.yml

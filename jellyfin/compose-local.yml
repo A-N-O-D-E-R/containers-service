@@ -1,0 +1,26 @@
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+      - JELLYFIN_PublishedServerUrl=https://tv.anode.com
+    volumes:
+      - ${BACKUP_DIR}/config/jellyfin:/config
+      - ${BACKUP_DIR}/tvseries:/data/tvshows
+      - ${BACKUP_DIR}/movies:/data/movies
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`tv.anode.com`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls=true"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+    restart: unless-stopped
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true
