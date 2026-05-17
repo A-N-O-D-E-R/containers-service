@@ -38,33 +38,12 @@ fi
 
 setup_local_requirements() {
   local domain="anode.com"
-  source "$env_file"
+  [[ -f "$env_file" ]] && source "$env_file"
   local cert_dir="$CERTS_DIR"
-  local hosts=(
-    "sso.anode.com"
-    "id.anode.com"
-    "monitor.anode.com"
-    "git.anode.com"
-    "s3.anode.com"
-    "portainer.anode.com"
-    "note.anode.com"
-    "search.anode.com"
-    "cad.anode.com"
-    "deluge.anode.com"
-    "sabnzbd.anode.com"
-    "zabbix.anode.com"
-    "rss.anode.com"
-    "unifi.anode.com"
-    "sonarr.anode.com"
-    "radarr.anode.com"
-    "bazarr.anode.com"
-    "overseerr.anode.com"
-    "lidarr.anode.com"
-    "prowlarr.anode.com"
-    "homeassistant.anode.com"
-    "tv.anode.com"
-  )
-
+  local hosts=()
+  while IFS= read -r host; do
+    hosts+=("$host")
+  done < <(find "$(dirname "$0")" -name "compose-local.yml" -exec grep -hoP "Host\(\`\K[^\`]+" {} \; | grep -v '<' | sort -u)
   if ! command -v mkcert >/dev/null 2>&1; then
     echo "Error: mkcert is not available."
     exit 1
@@ -108,6 +87,63 @@ compose_cmd() {
   fi
 }
 
+
+ensure_S3_mounted() {
+  if docker ps --format '{{.Names}}' | grep -qx 'garage'; then
+    echo "garage is running, proceeding to mount S3 storage..."
+  else
+    echo "garage is NOT running"
+    echo "Please start the 'garage' container service to access S3 storage features."
+    exit 1
+  fi
+  local bucket="${BACKUP_BUCKET:-backup-bucket}"
+
+  if [[ -f "${HOME}/.passwd-s3fs" ]]; then
+    echo "S3 credentials file already exists at ${HOME}/.passwd-s3fs"
+  else
+    awk -F= '
+    /aws_access_key_id/ { key=$2 }
+    /aws_secret_access_key/ { secret=$2 }
+    END {
+      gsub(/^[ \t]+|[ \t]+$/, "", key)
+      gsub(/^[ \t]+|[ \t]+$/, "", secret)
+      print key ":" secret
+    }
+    ' ${TMP_S3_CREDENTIALS_FILE}/credentials > "${HOME}/.passwd-s3fs"
+      chmod 600 "${HOME}/.passwd-s3fs"
+      echo "Created S3 credentials file at ${HOME}/.passwd-s3fs"
+  fi
+  # Create mount dir if needed
+  sudo mkdir -p "$S3_MOUNT_DIR"
+
+  # Already mounted?
+  if mountpoint -q "$S3_MOUNT_DIR"; then
+    echo "S3 already mounted at $S3_MOUNT_DIR"
+    return 0
+  else
+    echo "Mounting S3 bucket '$bucket' to $S3_MOUNT_DIR..."
+  fi
+
+  sudo s3fs "$bucket" "$S3_MOUNT_DIR" \
+    -o passwd_file="${HOME}/.passwd-s3fs" \
+    -o url="https://s3.anode.com" \
+    -o endpoint=garage \
+    -o logfile=/tmp/s3fs.log \
+    -o use_path_request_style \
+    -o allow_other \
+    -o uid="${PUID}" \
+    -o gid="${PGID}"
+
+  # Verify mount succeeded
+  if mountpoint -q "$S3_MOUNT_DIR"; then
+    echo "Mounted $bucket to $S3_MOUNT_DIR"
+    return 0
+  else
+    echo "Failed to mount $bucket"
+    return 1
+  fi
+}
+
 run_for_app() {
   local app_name="$1"
   local compose_file="$dir/$app_name/compose-${env}.yml"
@@ -118,6 +154,7 @@ run_for_app() {
   case "$command" in
     start)
       sudo docker network ls | grep -q "anode-shared-network" || sudo docker network create anode-shared-network
+      grep -q "S3_MOUNT_DIR" "$compose_file" && ensure_S3_mounted
       echo "Starting '$app_name' ($env)..."
       compose_cmd "$app_name" "$compose_file" up -d
       ;;
@@ -138,8 +175,8 @@ if [[ "$app" == "*" ]]; then
     echo "Error: No compose-${env}.yml files found under '$dir'."
     exit 1
   fi
-  # Enforce start order: traefik → db → rest (reversed for stop)
-  priority=(traefik db cache)
+  # Enforce start order: traefik → db → s3 → rest (reversed for stop)
+  priority=(traefik db cache nosql garage)
   ordered=()
   for p in "${priority[@]}"; do
     for a in "${all_apps[@]}"; do
