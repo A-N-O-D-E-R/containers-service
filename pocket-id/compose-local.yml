@@ -8,7 +8,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     volumes:
-      - ${BACKUP_DIR}/pocket-id:/data
+      - ${S3_MOUNT_DIR}/pocket-id:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pocket.rule=Host(`id.anode.com`)"

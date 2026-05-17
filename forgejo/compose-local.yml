@@ -15,7 +15,7 @@ services:
       - FORGEJO__server__SSH_DOMAIN=git.anode.com
       - FORGEJO__server__SSH_PORT=2222
     volumes:
-      - ${BACKUP_DIR}/forgejo:/data
+      - ${S3_MOUNT_DIR}/git-server:/data
     ports:
       - "2222:22"
     labels:

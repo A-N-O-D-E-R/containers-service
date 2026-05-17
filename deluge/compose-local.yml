@@ -8,8 +8,8 @@ services:
       TZ: ${TZ}
       DELUGE_LOGLEVEL: error
     volumes:
-      - ${BACKUP_DIR}/config/deluge:/config
-      - ${BACKUP_DIR}/downloads:/downloads
+      - ${S3_MOUNT_DIR}/config/deluge:/config
+      - ${S3_MOUNT_DIR}/downloads:/downloads
     ports:
       - 6881:6881
       - 6881:6881/udp

@@ -7,6 +7,7 @@ services:
     environment:
       - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
       - GARAGE_BUCKETS=${GARAGE_BUCKETS:-}
+      - CREDENTIALS_FILE=${TMP_S3_CREDENTIALS_FILE}
     volumes:
       - ./garage.toml.tpl:/etc/garage.toml.tpl:ro
       - ${BACKUP_DIR}/s3/meta:/var/lib/garage/meta

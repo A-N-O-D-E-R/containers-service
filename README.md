@@ -89,3 +89,30 @@ Running with `env=local` requires:
 - `mkcert` (installed automatically if missing)
 - Sudo access (for `/etc/hosts` entries and Docker)
 - A `.env-local` file at the repo root with at least `CERTS_DIR` defined
+
+
+
+
+
+## S3
+When starting the garage service (S3) you will need to add
+
+- in ~/.aws/config
+```toml
+[default]
+region = garage
+output = json
+
+services = garage-s3
+
+[services garage-s3]
+s3 =
+  endpoint_url = https://s3.anode.com
+```
+
+in your bashrc/zshrc or whatever
+
+```bash 
+export AWS_CA_BUNDLE="${CA_BUNDLE:-$HOME/.local/share/mkcert/rootCA.pem}"
+```
+

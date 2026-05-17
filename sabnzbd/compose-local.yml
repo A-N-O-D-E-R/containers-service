@@ -7,9 +7,9 @@ services:
       PGID: ${PGID}
       TZ: ${TZ}
     volumes:
-      - ${BACKUP_DIR}/config/sabnzbd:/config
-      - ${BACKUP_DIR}/sabnzbd/incomplete-downloads:/data:/incomplete-downloads #optional
-      - ${BACKUP_DIR}/downloads:/data
+      - ${S3_MOUNT_DIR}/config/sabnzbd:/config
+      - ${S3_MOUNT_DIR}/sabnzbd/incomplete-downloads:/data:/incomplete-downloads #optional
+      - ${S3_MOUNT_DIR}/downloads:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.sabnzbd.rule=Host(`sabnzbd.anode.com`)"

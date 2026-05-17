@@ -3,9 +3,13 @@ set -e
 
 sed "s|\${GARAGE_RPC_SECRET}|${GARAGE_RPC_SECRET}|g" /etc/garage.toml.tpl > /tmp/garage.toml
 G="/garage -c /tmp/garage.toml"
-
+MASTER_KEYNAME=${MASTER_KEYNAME:-default-key}
 $G server &
 SERVER_PID=$!
+
+if [[ ",$GARAGE_BUCKETS," != *",$BACKUP_BUCKET,"* ]]; then
+  GARAGE_BUCKETS="${GARAGE_BUCKETS:+$GARAGE_BUCKETS,}$BACKUP_BUCKET"
+fi
 
 until $G status > /dev/null 2>&1; do
   sleep 1
@@ -26,10 +30,18 @@ if [ -n "$GARAGE_BUCKETS" ]; then
 fi
 
 if [ -z "$($G key list | awk 'NR>1 {print $1; exit}')" ]; then
-  $G key create default-key
-  $G key allow --create-bucket default-key
+  $G key create $MASTER_KEYNAME | awk -F': *' '
+    /Key ID/ { key=$2 }
+    /Secret key/ { secret=$2 }
+    END {
+      print "[default]"
+      print "aws_access_key_id=" key
+      print "aws_secret_access_key=" secret
+    }' > ${CREDENTIALS_FILE}
+  echo 
+  $G key allow --create-bucket $MASTER_KEYNAME
   $G bucket list | awk 'NR>1 {print $1}' | while read -r bucket; do
-    $G bucket allow "$bucket" --key default-key --read --write
+    $G bucket allow "$bucket" --key $MASTER_KEYNAME --read --write 
   done
 fi
 

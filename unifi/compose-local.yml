@@ -13,7 +13,7 @@ services:
       - MONGO_DBNAME=unifi
       - MONGO_AUTHSOURCE=admin
     volumes:
-      - ${BACKUP_DIR}/config/unifi:/config/data
+      - ${S3_MOUNT_DIR}/config/unifi:/config/data
       - ${LOG_DIR}/unifi:/config/logs
     ports:
       - 3478:3478/udp

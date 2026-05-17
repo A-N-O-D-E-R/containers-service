@@ -8,9 +8,9 @@ services:
       - PGID=${PGID:-1000}
       - TZ=${TZ:-Etc/UTC}
     volumes:
-      - ${BACKUP_DIR}/config/lidarr:/config
-      - ${BACKUP_DIR}/music:/music #optional
-      - ${BACKUP_DIR}/downloads:/downloads #optional
+      - ${S3_MOUNT_DIR}/config/lidarr:/config
+      - ${S3_MOUNT_DIR}/music:/music #optional
+      - ${S3_MOUNT_DIR}/downloads:/downloads #optional
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.lidarr.rule=Host(`lidarr.anode.com`)"

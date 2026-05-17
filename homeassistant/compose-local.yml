@@ -7,7 +7,7 @@ services:
       - PGID=${PGID:-1000}
       - TZ=${TZ:-Etc/UTC}
     volumes:
-      - ${BACKUP_DIR}/config/homeassistant:/config
+      - ${S3_MOUNT_DIR}/config/homeassistant:/config
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.anode.com`)"
