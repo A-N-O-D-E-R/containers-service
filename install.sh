@@ -9,6 +9,9 @@ SCRIPT_NAME="${BASH_SOURCE[0]:-$0}"
 SYSTEMD_DIR="/etc/systemd/system"
 EXCLUDED=(traefik db cache)
 
+#==============================================================================#
+#                               Utility functions
+#==============================================================================#
 log() {
   printf '\033[1;32m[INFO]\033[0m %s\n' "$*"
 }
@@ -21,6 +24,18 @@ die() {
   printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2
   exit 1
 }
+
+generate_password() {
+  openssl rand -base64 24 | tr -d '\n'
+}
+
+generate_hex() {
+  openssl rand -hex 32
+}
+
+#==============================================================================#
+#                             Installation functions
+#==============================================================================#
 
 check_os() {
   [[ "$(uname -s)" == "Linux" ]] || die "Linux required"
@@ -55,6 +70,7 @@ check_deps() {
 
   command -v git >/dev/null || missing+=(git)
   command -v docker >/dev/null || missing+=(docker)
+  command -v keepassxc-cli >/dev/null || missing+=(keepassxc-cli)
 
   if ! command -v docker-compose >/dev/null \
      && ! docker compose version >/dev/null 2>&1; then
@@ -179,6 +195,83 @@ install_scripts() {
     /usr/local/bin/anode-container
 }
 
+prompt_keepass_password() {
+  if [[ -z "${KPXC_PASSWORD:-}" ]]; then
+    read -rsp "KeePassXC master password: " KPXC_PASSWORD
+    echo
+  fi
+}
+
+create_keepass_db() {
+  local db_file="$INSTALL_DIR/anode-service.db"
+
+  if [[ -f "$db_file" ]]; then
+    warn "KeePassXC database already exists"
+    return
+  fi
+
+  log "creating KeePassXC database"
+
+  prompt_keepass_password
+
+  export KPXC_PASSWORD
+
+  printf '%s\n%s\n' "$KPXC_PASSWORD" "$KPXC_PASSWORD" \
+    | keepassxc-cli db-create --set-password "$db_file"
+}
+
+kpxc_group_exists() {
+  prompt_keepass_password
+  printf '%s\n' "$KPXC_PASSWORD" | \
+    keepassxc-cli ls \
+      "$INSTALL_DIR/anode-service.db" \
+      "$1" \
+    >/dev/null 2>&1
+}
+
+kpxc_create_group() {
+  local group="$1"
+
+  if ! kpxc_group_exists "$group"; then
+    prompt_keepass_password
+    printf '%s\n' "$KPXC_PASSWORD" | \
+      keepassxc-cli mkdir \
+        "$INSTALL_DIR/anode-service.db" \
+        "$group"
+  fi
+}
+
+kpxc_add() {
+  local group="$1"
+  local title="$2"
+  local username="$3"
+  local password="$4"
+
+  kpxc_create_group "$group"
+
+  local entry="${group}/${title}"
+  prompt_keepass_password
+  if printf '%s\n' "$KPXC_PASSWORD" | \
+      keepassxc-cli show \
+        "$INSTALL_DIR/anode-service.db" \
+        "$entry" \
+        >/dev/null 2>&1; then
+    warn "KeePass entry already exists: $entry"
+    return
+  fi
+
+  printf '%s\n%s\n%s\n' \
+    "$KPXC_PASSWORD" \
+    "$password" \
+    "$password" \
+  | keepassxc-cli add \
+      --username "$username" \
+      --password-prompt \
+      "$INSTALL_DIR/anode-service.db" \
+      "$entry"
+}
+
+
 AVAILABLE_SERVICES=()
 SELECTED_SERVICES=()
 
@@ -234,10 +327,171 @@ service_selected() {
   return 1
 }
 
+configure_storage() {
+  echo
+
+  read -rp "Certificates directory [./certs]: " CERTS_DIR
+  CERTS_DIR="${CERTS_DIR:-./certs}"
+
+  read -rp "Logs directory [./.logs]: " LOG_DIR
+  LOG_DIR="${LOG_DIR:-./.logs}"
+
+  read -rp "Backup directory [/usr/local/share/anode/.backup]: " BACKUP_DIR
+  BACKUP_DIR="${BACKUP_DIR:-/usr/local/share/anode/.backup}"
+
+  read -rp "S3 mount directory [/mnt/backup-s3]: " S3_MOUNT_DIR
+  S3_MOUNT_DIR="${S3_MOUNT_DIR:-/mnt/backup-s3}"
+
+  read -rp "S3 credentials file [/root/.aws/credentials]: " TMP_S3_CREDENTIALS_FILE
+  TMP_S3_CREDENTIALS_FILE="${TMP_S3_CREDENTIALS_FILE:-/root/.aws/credentials}"
+
+  echo
+  read -rp "How many Garage buckets? [3]: " bucket_count
+  bucket_count="${bucket_count:-3}"
+
+  GARAGE_BUCKETS=()
+
+  for ((i=1; i<=bucket_count; i++)); do
+    read -rp "Bucket #${i} name [bucket${i}]: " bucket_name
+    bucket_name="${bucket_name:-bucket${i}}"
+
+    GARAGE_BUCKETS+=("$bucket_name")
+  done
+
+  GARAGE_BUCKETS_CSV=$(IFS=, ; echo "${GARAGE_BUCKETS[*]}")
+
+  echo
+  echo "Available backup buckets:"
+  for bucket in "${GARAGE_BUCKETS[@]}"; do
+    echo " - $bucket"
+  done
+
+  echo
+  read -rp "Backup bucket [${GARAGE_BUCKETS[0]}]: " BACKUP_BUCKET
+  BACKUP_BUCKET="${BACKUP_BUCKET:-${GARAGE_BUCKETS[0]}}"
+
+  S3_DATA_DIR="${BACKUP_DIR}/s3/data"
+
+  mkdir -p \
+    "$CERTS_DIR" \
+    "$LOG_DIR" \
+    "$BACKUP_DIR" \
+    "$S3_DATA_DIR"
+}
+
+generate_env() {
+  local env_file="$INSTALL_DIR/.env-local"
+
+  [[ -f "$env_file" ]] && {
+    warn ".env-local already exists"
+    return
+  }
+
+  log "generating secrets"
+
+  JWT_SECRET=$(generate_password)
+
+  ADMIN_DB_PASSWORD=$(generate_password)
+  ADMIN_NOSQL_PASSWORD=$(generate_password)
+
+  ZABBIX_DB_PASSWORD=$(generate_password)
+  FORGEJO_DB_PASSWORD=$(generate_password)
+  RSS_DB_PASSWORD=$(generate_password)
+  UNIFI_DB_PASSWORD=$(generate_password)
+
+  ENCRYPTION_KEY=$(generate_hex)
+
+  NOTE_PIN=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+
+  GARAGE_INPUT=$(generate_password)
+  GARAGE_RPC_SECRET=$(
+    echo -n "$GARAGE_INPUT" \
+      | sha256sum \
+      | awk '{print $1}'
+  )
+
+  log "saving credentials to KeePassXC"
+
+  kpxc_add "Databases" "admin-db" "admin" "$ADMIN_DB_PASSWORD"
+  kpxc_add "Databases" "admin-nosql" "admin" "$ADMIN_NOSQL_PASSWORD"
+
+  kpxc_add "Databases" "zabbix" "zabbix" "$ZABBIX_DB_PASSWORD"
+  kpxc_add "Databases" "forgejo" "forgejo" "$FORGEJO_DB_PASSWORD"
+  kpxc_add "Databases" "rss" "rss" "$RSS_DB_PASSWORD"
+  kpxc_add "Databases" "unifi" "unifi" "$UNIFI_DB_PASSWORD"
+
+  kpxc_add "Secrets" "jwt" "jwt" "$JWT_SECRET"
+  kpxc_add "Secrets" "garage-rpc" "garage" "$GARAGE_INPUT"
+  kpxc_add "web" "note.anode.com" "note" "$NOTE_PIN"
+
+  TZ=$(timedatectl show | grep Timezone | cut -d= -f2-)
+
+  cat > "$env_file" <<EOF
+EMAIL=you@anode.com
+JWT_SECRET=${JWT_SECRET}
+
+ADMIN_DB_PASSWORD=${ADMIN_DB_PASSWORD}
+ADMIN_NOSQL_PASSWORD=${ADMIN_NOSQL_PASSWORD}
+
+ZABBIX_DB_NAME=zabbix
+ZABBIX_DB_USER=zabbix
+ZABBIX_DB_PASSWORD=${ZABBIX_DB_PASSWORD}
+
+FORGEJO_DB_NAME=forgejo
+FORGEJO_DB_USER=forgejo
+FORGEJO_DB_PASSWORD=${FORGEJO_DB_PASSWORD}
+
+RSS_DB_NAME=rss
+RSS_DB_USER=rss
+RSS_DB_PASSWORD=${RSS_DB_PASSWORD}
+
+UNIFI_DB_NAME=unifi
+UNIFI_DB_USER=unifi
+UNIFI_DB_PASSWORD=${UNIFI_DB_PASSWORD}
+
+CREDENTIALS="\${ZABBIX_DB_NAME}:\${ZABBIX_DB_USER}:\${ZABBIX_DB_PASSWORD},\${FORGEJO_DB_NAME}:\${FORGEJO_DB_USER}:\${FORGEJO_DB_PASSWORD},\${RSS_DB_NAME}:\${RSS_DB_USER}:\${RSS_DB_PASSWORD}"
+
+NOSQL_CREDENTIALS="\${UNIFI_DB_NAME}:\${UNIFI_DB_USER}:\${UNIFI_DB_PASSWORD}"
+
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
+
+GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
+GARAGE_BUCKETS=${GARAGE_BUCKETS_CSV}
+
+TMP_S3_CREDENTIALS_FILE=${TMP_S3_CREDENTIALS_FILE}
+
+CERTS_DIR=${CERTS_DIR}
+LOG_DIR=${LOG_DIR}
+BACKUP_DIR=${BACKUP_DIR}
+
+BACKUP_BUCKET=${BACKUP_BUCKET}
+S3_MOUNT_DIR=${S3_MOUNT_DIR}
+
+PUID=1000
+PGID=1000
+TZ=${TZ}
+
+NoteAuthCode=${NOTE_PIN}
+EOF
+
+  chmod 600 "$env_file"
+
+  log ".env-local created"
+}
+
+#==============================================================================#
+#                               Main function
+#==============================================================================#
+
 main() {
   check_os
   check_deps
   sync_repo
+  
+  configure_storage
+  create_keepass_db
+  generate_env
+  
   discover_services
   choose_services
   install_scripts
@@ -249,4 +503,7 @@ main() {
   log "installation complete"
 }
 
+#==============================================================================#
+#                                Entry point
+#==============================================================================#
 if [[ "${SCRIPT_NAME}" == "$0" ]]; then main "$@"; fi
