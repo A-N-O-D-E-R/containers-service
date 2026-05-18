@@ -31,6 +31,7 @@ check_deps() {
   fi
 
   command -v mkcert &>/dev/null || echo "warning: mkcert not found, required for local env"
+  command -v s3fs &>/dev/null || echo "warning: s3fs not found, required for local env"
 
   [[ ${#missing[@]} -eq 0 ]] && return 0
 
@@ -119,10 +120,3 @@ link_units
 generate_overrides
 systemctl daemon-reload
 echo "done"
-
-### for backup
-# sudo apt install s3fs
-
-# source .env-local
-# sudo mkdir ${S3_MOUNT_DIR}
-# sudo s3fs ${BACKUP_BUCKET:-backup-bucket} ${S3_MOUNT_DIR} -o passwd_file=${HOME}/.passwd-s3fs -o url=https://s3.anode.com/ -o endpoint=garage -o logfile=/tmp/s3fs.log  -o use_path_request_style -o allow_other -o uid=${PUID} -o gid=${PGID}
