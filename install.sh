@@ -131,29 +131,18 @@ link_units() {
   shopt -s nullglob
 
   for unit in "$INSTALL_DIR"/*.service "$INSTALL_DIR"/*.target; do
-    local dest="$SYSTEMD_DIR/$(basename "$unit")"
+    ln -sf "$unit" "$SYSTEMD_DIR/$(basename "$unit")"
+  done
 
-    ln -sf "$unit" "$dest"
-
-    log "linked $(basename "$dest")"
+  for app in "${SELECTED_SERVICES[@]}"; do
+    systemctl enable "anode-container@${app}.service"
   done
 }
 
 generate_overrides() {
-  declare -A seen
-  local apps=()
+  for app in "${AVAILABLE_SERVICES[@]}"; do
+    service_selected "$app" || continue
 
-  for f in "$INSTALL_DIR"/*/compose-*.yml; do
-    local app
-    app=$(basename "$(dirname "$f")")
-
-    if [[ -z "${seen[$app]+x}" ]]; then
-      apps+=("$app")
-      seen[$app]=1
-    fi
-  done
-
-  for app in "${apps[@]}"; do
     is_excluded "$app" && continue
 
     local dropin="$SYSTEMD_DIR/anode-container@${app}.service.d/order.conf"
@@ -189,10 +178,67 @@ install_scripts() {
     /usr/local/bin/anode-container
 }
 
+AVAILABLE_SERVICES=()
+SELECTED_SERVICES=()
+
+discover_services() {
+  declare -A seen
+
+  for f in "$INSTALL_DIR"/*/compose-*.yml; do
+    local app
+    app=$(basename "$(dirname "$f")")
+
+    [[ -n "${seen[$app]+x}" ]] && continue
+
+    seen[$app]=1
+    AVAILABLE_SERVICES+=("$app")
+  done
+}
+
+choose_services() {
+  if [[ -n "${SERVICES:-}" ]]; then
+    IFS=',' read -ra SELECTED_SERVICES <<< "$SERVICES"
+    return
+  fi
+
+  echo
+  log "available services:"
+
+  local i=1
+  for svc in "${AVAILABLE_SERVICES[@]}"; do
+    printf "  [%d] %s\n" "$i" "$svc"
+    ((i++))
+  done
+
+  echo
+  read -rp "select services (all or comma-separated names): " reply
+
+  if [[ "$reply" == "all" ]]; then
+    SELECTED_SERVICES=("${AVAILABLE_SERVICES[@]}")
+    return
+  fi
+
+  IFS=',' read -ra SELECTED_SERVICES <<< "$reply"
+}
+
+service_selected() {
+  local target="$1"
+
+  for svc in "${SELECTED_SERVICES[@]}"; do
+    svc="$(echo "$svc" | xargs)"
+
+    [[ "$svc" == "$target" ]] && return 0
+  done
+
+  return 1
+}
+
 main() {
   check_os
   check_deps
   sync_repo
+  discover_services
+  choose_services
   install_scripts
   link_units
   generate_overrides
@@ -202,4 +248,4 @@ main() {
   log "installation complete"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
