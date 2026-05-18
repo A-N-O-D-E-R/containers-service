@@ -4,6 +4,7 @@ set -Eeuo pipefail
 REPO_URL="${REPO_URL:-https://github.com/A-N-O-D-E-R/containers-service.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/anode}"
 BRANCH="${BRANCH:-master}"
+SCRIPT_NAME="${BASH_SOURCE[0]:-$0}"
 
 SYSTEMD_DIR="/etc/systemd/system"
 EXCLUDED=(traefik db cache)
@@ -248,4 +249,4 @@ main() {
   log "installation complete"
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then main "$@"; fi
+if [[ "${SCRIPT_NAME}" == "$0" ]]; then main "$@"; fi
