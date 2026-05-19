@@ -5,7 +5,6 @@ REPO_URL="${REPO_URL:-https://github.com/A-N-O-D-E-R/containers-service.git}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/anode}"
 BRANCH="${BRANCH:-master}"
 SCRIPT_NAME="${BASH_SOURCE[0]:-$0}"
-
 SYSTEMD_DIR="/etc/systemd/system"
 EXCLUDED=(traefik db cache)
 
@@ -257,6 +256,7 @@ kpxc_add() {
         "$entry" \
         >/dev/null 2>&1; then
     warn "KeePass entry already exists: $entry"
+    echo $(printf '%s\n' "$KPXC_PASSWORD" | keepassxc-cli show -a Password "$INSTALL_DIR/anode-service.db" "$entry")
     return
   fi
 
@@ -269,6 +269,7 @@ kpxc_add() {
       --password-prompt \
       "$INSTALL_DIR/anode-service.db" \
       "$entry"
+  echo $password 
 }
 
 
@@ -412,17 +413,17 @@ generate_env() {
 
   log "saving credentials to KeePassXC"
 
-  kpxc_add "Databases" "admin-db" "admin" "$ADMIN_DB_PASSWORD"
-  kpxc_add "Databases" "admin-nosql" "admin" "$ADMIN_NOSQL_PASSWORD"
+  ADMIN_DB_PASSWORD=$(kpxc_add "Databases" "admin-db" "admin" "$ADMIN_DB_PASSWORD" | tr -d '\n')
+  ADMIN_NOSQL_PASSWORD=$(kpxc_add "Databases" "admin-nosql" "admin" "$ADMIN_NOSQL_PASSWORD" | tr -d '\n')
 
-  kpxc_add "Databases" "zabbix" "zabbix" "$ZABBIX_DB_PASSWORD"
-  kpxc_add "Databases" "forgejo" "forgejo" "$FORGEJO_DB_PASSWORD"
-  kpxc_add "Databases" "rss" "rss" "$RSS_DB_PASSWORD"
-  kpxc_add "Databases" "unifi" "unifi" "$UNIFI_DB_PASSWORD"
+  ZABBIX_DB_PASSWORD=$(kpxc_add "Databases" "zabbix" "zabbix" "$ZABBIX_DB_PASSWORD" | tr -d '\n')
+  FORGEJO_DB_PASSWORD=$(kpxc_add "Databases" "forgejo" "forgejo" "$FORGEJO_DB_PASSWORD" | tr -d '\n')
+  RSS_DB_PASSWORD=$(kpxc_add "Databases" "rss" "rss" "$RSS_DB_PASSWORD" | tr -d '\n')
+  UNIFI_DB_PASSWORD=$(kpxc_add "Databases" "unifi" "unifi" "$UNIFI_DB_PASSWORD" | tr -d '\n')
 
-  kpxc_add "Secrets" "jwt" "jwt" "$JWT_SECRET"
-  kpxc_add "Secrets" "garage-rpc" "garage" "$GARAGE_INPUT"
-  kpxc_add "web" "note.anode.com" "note" "$NOTE_PIN"
+  JWT_SECRET=$(kpxc_add "Secrets" "jwt" "jwt" "$JWT_SECRET" | tr -d '\n')
+  GARAGE_RPC_SECRET=$(kpxc_add "Secrets" "garage-rpc" "garage" "$GARAGE_INPUT" | tr -d '\n')
+  NOTE_PIN=$(kpxc_add "web" "note.anode.com" "note" "$NOTE_PIN" | tr -d '\n')
 
   TZ=$(timedatectl show | grep Timezone | cut -d= -f2-)
 
