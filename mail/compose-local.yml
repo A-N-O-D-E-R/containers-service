@@ -1,0 +1,20 @@
+services: 
+  mail:
+    image: sj26/mailcatcher:latest
+    container_name: mail
+    expose:
+      - '1025'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mail.rule=Host(`mail.anode.com`)"
+      - "traefik.http.routers.mail.entrypoints=websecure"
+      - "traefik.http.routers.mail.tls=true"
+      - "traefik.http.services.mail.loadbalancer.server.port=1080"
+    restart: unless-stopped
+    networks:
+      - anode-shared-network
+
+
+networks:
+  anode-shared-network:
+    external: true
