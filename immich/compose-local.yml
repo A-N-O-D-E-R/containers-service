@@ -1,0 +1,70 @@
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    container_name: immich_server
+    restart: unless-stopped
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=${IMMICH_DB_USER}
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=${IMMICH_DB_NAME}
+      - REDIS_HOSTNAME=immich-redis
+      - UPLOAD_LOCATION=/data
+      - TZ=${TZ}
+    volumes:
+      - ${S3_MOUNT_DIR}/immich/photos:/data
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - immich-redis
+      - immich-postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.immich.rule=Host(`photos.anode.com`)"
+      - "traefik.http.routers.immich.entrypoints=websecure"
+      - "traefik.http.services.immich.loadbalancer.server.port=2283"
+    networks:
+      - immich
+      - anode-shared-network
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    container_name: immich_machine_learning
+    restart: unless-stopped
+    volumes:
+      - ${S3_MOUNT_DIR}/immich/model-cache:/cache
+    networks:
+      - immich
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9-alpine
+    container_name: immich_redis
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli ping || exit 1
+    networks:
+      - immich
+
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    container_name: immich_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${IMMICH_DB_USER}
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_DB=${IMMICH_DB_NAME}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - ${S3_MOUNT_DIR}/immich/pgdata:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      test: pg_isready -U ${IMMICH_DB_USER} -d ${IMMICH_DB_NAME}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - immich
+
+networks:
+  immich:
+  anode-shared-network:
+    external: true

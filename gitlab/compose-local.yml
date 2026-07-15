@@ -1,0 +1,45 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: unless-stopped
+    hostname: gitlab.anode.com
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://gitlab.anode.com'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = {
+          "X-Forwarded-Proto" => "https",
+          "X-Forwarded-Ssl" => "on"
+        }
+        gitlab_rails['db_adapter'] = 'postgresql'
+        gitlab_rails['db_host'] = 'shared-db'
+        gitlab_rails['db_port'] = 5432
+        gitlab_rails['db_database'] = '${GITLAB_DB_NAME}'
+        gitlab_rails['db_username'] = '${GITLAB_DB_USER}'
+        gitlab_rails['db_password'] = '${GITLAB_DB_PASSWORD}'
+        gitlab_rails['initial_root_password'] = '${GITLAB_ROOT_PASSWORD}'
+        gitlab_rails['gitlab_signup_enabled'] = false
+        gitlab_rails['lfs_enabled'] = true
+        gitlab_rails['usage_ping_enabled'] = false
+        gitlab_rails['sentry_enabled'] = false
+        gitlab_shell['ssh_port'] = 2223
+    ports:
+      - "2223:22"
+    volumes:
+      - ${S3_MOUNT_DIR}/gitlab/config:/etc/gitlab
+      - ${S3_MOUNT_DIR}/gitlab/logs:/var/log/gitlab
+      - ${S3_MOUNT_DIR}/gitlab/data:/var/opt/gitlab
+    shm_size: 256m
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitlab.rule=Host(`gitlab.anode.com`)"
+      - "traefik.http.routers.gitlab.entrypoints=websecure"
+      - "traefik.http.services.gitlab.loadbalancer.server.port=80"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

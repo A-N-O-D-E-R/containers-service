@@ -1,0 +1,43 @@
+services:
+  documenso:
+    image: documenso/documenso:latest
+    container_name: documenso
+    restart: unless-stopped
+    environment:
+      - NEXTAUTH_SECRET=${DOCUMENSO_NEXTAUTH_SECRET}
+      - NEXT_PRIVATE_ENCRYPTION_KEY=${DOCUMENSO_ENCRYPTION_KEY}
+      - NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=${DOCUMENSO_ENCRYPTION_SECONDARY_KEY}
+      - NEXT_PUBLIC_WEBAPP_URL=https://sign.anode.com
+      - NEXT_PRIVATE_DATABASE_URL=postgresql://${DOCUMENSO_DB_USER}:${DOCUMENSO_DB_PASSWORD}@shared-db:5432/${DOCUMENSO_DB_NAME}
+      - NEXT_PRIVATE_DIRECT_DATABASE_URL=postgresql://${DOCUMENSO_DB_USER}:${DOCUMENSO_DB_PASSWORD}@shared-db:5432/${DOCUMENSO_DB_NAME}
+      - NEXT_PUBLIC_UPLOAD_TRANSPORT=s3
+      - NEXT_PRIVATE_UPLOAD_ENDPOINT=https://s3.anode.com
+      - NEXT_PRIVATE_UPLOAD_FORCE_PATH_STYLE=true
+      - NEXT_PRIVATE_UPLOAD_REGION=garage
+      - NEXT_PRIVATE_UPLOAD_BUCKET=${DOCUMENSO_S3_BUCKET}
+      - NEXT_PRIVATE_UPLOAD_ACCESS_KEY_ID=${DOCUMENSO_S3_ACCESS_KEY_ID}
+      - NEXT_PRIVATE_UPLOAD_SECRET_ACCESS_KEY=${DOCUMENSO_S3_SECRET_ACCESS_KEY}
+      - NEXT_PRIVATE_SMTP_TRANSPORT=smtp-auth
+      - NEXT_PRIVATE_SMTP_HOST=${SMTP_HOST}
+      - NEXT_PRIVATE_SMTP_PORT=${SMTP_PORT}
+      - NEXT_PRIVATE_SMTP_USERNAME=${SMTP_USER}
+      - NEXT_PRIVATE_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - NEXT_PRIVATE_SMTP_SECURE=true
+      - NEXT_PRIVATE_SMTP_FROM_NAME=Documenso
+      - NEXT_PRIVATE_SMTP_FROM_ADDRESS=${SMTP_FROM}
+      - NEXT_PUBLIC_DISABLE_SIGNUP=true
+      - NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=/opt/documenso/cert.p12
+      - NEXT_PRIVATE_SIGNING_PASSPHRASE=${DOCUMENSO_SIGNING_PASSPHRASE}
+    volumes:
+      - ${S3_MOUNT_DIR}/documenso/cert.p12:/opt/documenso/cert.p12:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.documenso.rule=Host(`sign.anode.com`)"
+      - "traefik.http.routers.documenso.entrypoints=websecure"
+      - "traefik.http.services.documenso.loadbalancer.server.port=3000"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true
