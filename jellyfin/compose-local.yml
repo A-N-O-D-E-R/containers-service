@@ -8,9 +8,9 @@ services:
       - TZ=${TZ:-Etc/UTC}
       - JELLYFIN_PublishedServerUrl=https://tv.anode.com
     volumes:
-      - ${S3_DATA_DIR}/config/jellyfin:/config
-      - ${S3_DATA_DIR}/tvseries:/data/tvshows
-      - ${S3_DATA_DIR}/movies:/data/movies
+      - ${S3_MOUNT_DIR}/config/jellyfin:/config
+      - ${S3_MOUNT_DIR}/tvseries:/data/tvshows
+      - ${S3_MOUNT_DIR}/movies:/data/movies
     labels:
       - "sablier.enable=true"
       - "sablier.group=jellyfin"

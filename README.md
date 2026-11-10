@@ -211,3 +211,8 @@ in your bashrc/zshrc or whatever
 ```bash
 export AWS_CA_BUNDLE="${CA_BUNDLE:-$HOME/.local/share/mkcert/rootCA.pem}"
 ```
+
+# tests 
+```bash
+bats .tests/install.bats
+```
