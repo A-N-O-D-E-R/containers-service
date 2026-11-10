@@ -39,7 +39,7 @@ volumes:
 services:
   penpot-frontend:
     image: "penpotapp/frontend:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     volumes:
       - penpot_assets:/opt/data/assets
     depends_on:
@@ -48,17 +48,25 @@ services:
     networks:
       - anode-shared-network
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.penpot-https.middlewares=penpot-sablier"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.group=penpot"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.dynamic.displayName=Penpot"
       - "traefik.enable=true"
       - "traefik.http.routers.penpot-https.rule=Host(`penpot.anode.com`)"
       - "traefik.http.routers.penpot-https.entrypoints=websecure"
       - "traefik.http.routers.penpot-https.tls=true"
-      - "traefik.http.services.mail.loadbalancer.server.port=8080"
+      - "traefik.http.services.penpot.loadbalancer.server.port=8080"
     environment:
       << : [*penpot-flags, *penpot-http-body-size]
 
   penpot-backend:
     image: "penpotapp/backend:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     volumes:
       - penpot_assets:/opt/data/assets
     networks:
@@ -83,15 +91,21 @@ services:
       PENPOT_SMTP_PASSWORD:
       PENPOT_SMTP_TLS: false
       PENPOT_SMTP_SSL: false
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
 
   penpot-exporter:
     image: "penpotapp/exporter:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     networks:
       - anode-shared-network
     environment:
       PENPOT_PUBLIC_URI: http://penpot-frontend:8080
       PENPOT_REDIS_URI: redis://shared-cache/0
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
 
 
 networks:

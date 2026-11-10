@@ -9,6 +9,14 @@ services:
     volumes:
       - ./settings-local.yaml:/etc/searxng/settings.yml
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=searxng"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.searxng.middlewares=searxng-sablier"
+      - "traefik.http.middlewares.searxng-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.searxng-sablier.plugin.sablier.group=searxng"
+      - "traefik.http.middlewares.searxng-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.searxng-sablier.plugin.sablier.dynamic.displayName=SearXNG"
       - "traefik.enable=true"
       - "traefik.http.routers.searxng.rule=Host(`search.anode.com`)"
       - "traefik.http.routers.searxng.entrypoints=websecure"

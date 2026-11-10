@@ -7,6 +7,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ${S3_MOUNT_DIR}/portainer:/data
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=portainer"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.portainer.middlewares=portainer-sablier"
+      - "traefik.http.middlewares.portainer-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.portainer-sablier.plugin.sablier.group=portainer"
+      - "traefik.http.middlewares.portainer-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.portainer-sablier.plugin.sablier.dynamic.displayName=Portainer"
       - "traefik.enable=true"
       - "traefik.http.routers.portainer.rule=Host(`portainer.anode.com`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"

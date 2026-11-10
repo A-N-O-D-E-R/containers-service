@@ -25,11 +25,18 @@ services:
     depends_on:
       - zabbix-server
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=zabbix"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.zabbix.middlewares=zabbix-sablier"
+      - "traefik.http.middlewares.zabbix-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.zabbix-sablier.plugin.sablier.group=zabbix"
+      - "traefik.http.middlewares.zabbix-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.zabbix-sablier.plugin.sablier.dynamic.displayName=Zabbix"
       - "traefik.enable=true"
       - "traefik.http.routers.zabbix.rule=Host(`monitor.anode.com`)"
       - "traefik.http.routers.zabbix.entrypoints=websecure"
       - "traefik.http.routers.zabbix.tls=true"
-      - "traefik.http.routers.zabbix.tls.certresolver=letsencrypt"
       - "traefik.http.services.zabbix.loadbalancer.server.port=8080"
     networks:
       - anode-shared-network

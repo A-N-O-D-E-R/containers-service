@@ -7,8 +7,10 @@ services:
     environment:
       - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
       - GARAGE_BUCKETS=${GARAGE_BUCKETS:-}
-      - CREDENTIALS_FILE=${TMP_S3_CREDENTIALS_FILE}
+      - BACKUP_BUCKET=${BACKUP_BUCKET:-backup-bucket}
+      - CREDENTIALS_FILE=/tmp/exportdata/credentials
     volumes:
+      - ${TMP_S3_CREDENTIALS_FILE}:/tmp/exportdata
       - ./garage.toml.tpl:/etc/garage.toml.tpl:ro
       - ${BACKUP_DIR}/s3/meta:/var/lib/garage/meta
       - ${BACKUP_DIR}/s3/data:/var/lib/garage/data
@@ -18,7 +20,6 @@ services:
       - "traefik.http.routers.garage-s3.rule=Host(`s3.anode.com`)"
       - "traefik.http.routers.garage-s3.entrypoints=websecure"
       - "traefik.http.routers.garage-s3.tls=true"
-      - "traefik.http.routers.garage-s3.tls.certresolver=letsencrypt"
       - "traefik.http.routers.garage-s3.service=garage-s3"
       - "traefik.http.services.garage-s3.loadbalancer.server.port=3900"
     networks:

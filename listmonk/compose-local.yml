@@ -1,0 +1,30 @@
+services:
+  listmonk:
+    image: listmonk/listmonk:latest
+    container_name: listmonk
+    restart: unless-stopped
+    command: ["/bin/sh", "-c", "./listmonk --install --idempotent --yes && ./listmonk --upgrade --yes && ./listmonk"]
+    environment:
+      - LISTMONK_app__address=0.0.0.0:9000
+      - LISTMONK_app__admin_username=${LISTMONK_ADMIN_USER}
+      - LISTMONK_app__admin_password=${LISTMONK_ADMIN_PASSWORD}
+      - LISTMONK_db__host=shared-db
+      - LISTMONK_db__port=5432
+      - LISTMONK_db__user=${LISTMONK_DB_USER}
+      - LISTMONK_db__password=${LISTMONK_DB_PASSWORD}
+      - LISTMONK_db__database=${LISTMONK_DB_NAME}
+      - LISTMONK_db__ssl_mode=disable
+      - TZ=${TZ}
+    volumes:
+      - ${S3_MOUNT_DIR}/listmonk/uploads:/listmonk/uploads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.listmonk.rule=Host(`mail.anode.com`)"
+      - "traefik.http.routers.listmonk.entrypoints=websecure"
+      - "traefik.http.services.listmonk.loadbalancer.server.port=9000"
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true

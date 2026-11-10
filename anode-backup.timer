@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Anode offsite backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# run at wake-up if the server was suspended at 03:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

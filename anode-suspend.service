@@ -1,0 +1,8 @@
+[Unit]
+Description=Suspend the host when Anode services are idle
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=ENV=local
+ExecStart=/usr/local/bin/anode-suspend ${ENV}

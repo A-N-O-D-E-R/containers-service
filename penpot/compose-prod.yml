@@ -20,18 +20,25 @@ volumes:
 services:
   penpot-frontend:
     image: "penpotapp/frontend:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     volumes:
       - penpot_assets:/opt/data/assets
     depends_on:
       - penpot-backend
       - penpot-exporter
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.penpot.middlewares=penpot-sablier"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.group=penpot"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.penpot-sablier.plugin.sablier.dynamic.displayName=Penpot"
       - "traefik.enable=true"
       - "traefik.http.routers.penpot.rule=Host(`penpot.anode.com`)"
       - "traefik.http.routers.penpot.entrypoints=websecure"
       - "traefik.http.routers.penpot.tls=true"
-      - "traefik.http.routers.penpot.tls.certresolver=letsencrypt"
       - "traefik.http.services.penpot.loadbalancer.server.port=8080"
     networks:
       - penpot
@@ -41,7 +48,7 @@ services:
 
   penpot-backend:
     image: "penpotapp/backend:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     volumes:
       - penpot_assets:/opt/data/assets
     depends_on:
@@ -69,10 +76,13 @@ services:
       PENPOT_SMTP_PASSWORD: ${SMTP_PASSWORD}
       PENPOT_SMTP_TLS: true
       PENPOT_SMTP_SSL: false
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
 
   penpot-exporter:
     image: "penpotapp/exporter:${PENPOT_VERSION:-latest}"
-    restart: always
+    restart: unless-stopped
     depends_on:
       penpot-redis:
         condition: service_healthy
@@ -81,10 +91,13 @@ services:
     environment:
       PENPOT_PUBLIC_URI: http://penpot-frontend:8080
       PENPOT_REDIS_URI: redis://penpot-redis/0
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
 
   penpot-postgres:
     image: "postgres:15"
-    restart: always
+    restart: unless-stopped
     stop_signal: SIGINT
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U penpot"]
@@ -101,10 +114,13 @@ services:
       - POSTGRES_DB=penpot
       - POSTGRES_USER=${PENPOT_DB_USER}
       - POSTGRES_PASSWORD=${PENPOT_DB_PASSWORD}
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"
 
   penpot-redis:
     image: redis:7.2
-    restart: always
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 1s
@@ -113,3 +129,6 @@ services:
       start_period: 3s
     networks:
       - penpot
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=penpot"

@@ -6,7 +6,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/anode}"
 BRANCH="${BRANCH:-master}"
 SCRIPT_NAME="${BASH_SOURCE[0]:-$0}"
 SYSTEMD_DIR="/etc/systemd/system"
-EXCLUDED=(traefik db cache)
+EXCLUDED=(traefik sablier db cache)
 
 #==============================================================================#
 #                               Utility functions
@@ -93,7 +93,13 @@ check_deps() {
   fi
 
   command -v mkcert >/dev/null \
-    || warn "mkcert not installed (needed for local TLS)"
+    || warn "mkcert not installed (needed for TLS certificates)"
+
+  command -v rclone >/dev/null \
+    || warn "rclone not installed (needed for anode-backup)"
+
+  command -v tailscale >/dev/null \
+    || warn "tailscale not installed (needed for remote access)"
 
   command -v s3fs >/dev/null \
     || warn "s3fs not installed (needed for object storage mounts)"
@@ -146,7 +152,7 @@ needs_cache() {
 link_units() {
   shopt -s nullglob
 
-  for unit in "$INSTALL_DIR"/*.service "$INSTALL_DIR"/*.target; do
+  for unit in "$INSTALL_DIR"/*.service "$INSTALL_DIR"/*.target "$INSTALL_DIR"/*.timer; do
     ln -sf "$unit" "$SYSTEMD_DIR/$(basename "$unit")"
   done
 
@@ -165,7 +171,7 @@ generate_overrides() {
 
     mkdir -p "$(dirname "$dropin")"
 
-    local after="anode-container@traefik.service"
+    local after="anode-container@traefik.service anode-container@sablier.service"
     local requires=""
 
     if needs_db "$app"; then
@@ -188,10 +194,11 @@ EOF
   done
 }
 
+# symlinks: the scripts resolve the repo (compose files, .env-*) through realpath
 install_scripts() {
-  install -m 755 \
-    "$INSTALL_DIR/manage-container.sh" \
-    /usr/local/bin/anode-container
+  ln -sf "$INSTALL_DIR/manage-container.sh" /usr/local/bin/anode-container
+  ln -sf "$INSTALL_DIR/scripts/backup.sh" /usr/local/bin/anode-backup
+  ln -sf "$INSTALL_DIR/scripts/auto-suspend.sh" /usr/local/bin/anode-suspend
 }
 
 prompt_keepass_password() {
@@ -502,6 +509,8 @@ main() {
   systemctl daemon-reload
 
   log "installation complete"
+  log "enable backups:      systemctl enable --now anode-backup.timer"
+  log "enable auto-suspend: systemctl enable --now anode-suspend.timer (check Wake-on-LAN first, see README)"
 }
 
 #==============================================================================#

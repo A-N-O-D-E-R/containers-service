@@ -1,0 +1,56 @@
+services:
+  calcom-redis:
+    image: redis:7-alpine
+    container_name: calcom-redis
+    restart: unless-stopped
+    volumes:
+      - ${S3_MOUNT_DIR}/calcom/redis:/data
+    networks:
+      - calcom
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=calcom"
+
+  calcom:
+    image: calcom.docker.scarf.sh/calcom/cal.com:latest
+    container_name: calcom
+    restart: unless-stopped
+    depends_on:
+      - calcom-redis
+    environment:
+      - NEXT_PUBLIC_WEBAPP_URL=https://cal.anode.com
+      - NEXT_PUBLIC_API_V2_URL=https://cal.anode.com/api/v2
+      - NEXTAUTH_SECRET=${CALCOM_NEXTAUTH_SECRET}
+      - CALENDSO_ENCRYPTION_KEY=${CALCOM_ENCRYPTION_KEY}
+      - DATABASE_URL=postgresql://${CALCOM_DB_USER}:${CALCOM_DB_PASSWORD}@shared-db:5432/${CALCOM_DB_NAME}
+      - DATABASE_DIRECT_URL=postgresql://${CALCOM_DB_USER}:${CALCOM_DB_PASSWORD}@shared-db:5432/${CALCOM_DB_NAME}
+      - REDIS_URL=redis://calcom-redis:6379
+      - EMAIL_FROM=${SMTP_FROM}
+      - EMAIL_FROM_NAME=Cal.com
+      - EMAIL_SERVER_HOST=${SMTP_HOST}
+      - EMAIL_SERVER_PORT=${SMTP_PORT}
+      - EMAIL_SERVER_USER=${SMTP_USER}
+      - EMAIL_SERVER_PASSWORD=${SMTP_PASSWORD}
+      - CALCOM_TELEMETRY_DISABLED=1
+      - NODE_ENV=production
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=calcom"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.calcom.middlewares=calcom-sablier"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.group=calcom"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.dynamic.displayName=Cal.com"
+      - "traefik.enable=true"
+      - "traefik.http.routers.calcom.rule=Host(`cal.anode.com`)"
+      - "traefik.http.routers.calcom.entrypoints=websecure"
+      - "traefik.http.services.calcom.loadbalancer.server.port=3000"
+    networks:
+      - calcom
+      - anode-shared-network
+
+networks:
+  calcom:
+  anode-shared-network:
+    external: true
