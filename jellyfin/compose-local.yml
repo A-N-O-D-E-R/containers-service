@@ -12,6 +12,14 @@ services:
       - ${S3_DATA_DIR}/tvseries:/data/tvshows
       - ${S3_DATA_DIR}/movies:/data/movies
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=jellyfin"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.jellyfin.middlewares=jellyfin-sablier"
+      - "traefik.http.middlewares.jellyfin-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.jellyfin-sablier.plugin.sablier.group=jellyfin"
+      - "traefik.http.middlewares.jellyfin-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.jellyfin-sablier.plugin.sablier.blocking.timeout=5m"
       - "traefik.enable=true"
       - "traefik.http.routers.jellyfin.rule=Host(`tv.anode.com`)"
       - "traefik.http.routers.jellyfin.entrypoints=websecure"

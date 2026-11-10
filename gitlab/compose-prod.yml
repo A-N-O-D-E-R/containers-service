@@ -41,11 +41,18 @@ services:
       - ${S3_DATA_DIR}/gitlab/data:/var/opt/gitlab
     shm_size: 256m
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=gitlab"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.gitlab.middlewares=gitlab-sablier"
+      - "traefik.http.middlewares.gitlab-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.gitlab-sablier.plugin.sablier.group=gitlab"
+      - "traefik.http.middlewares.gitlab-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.gitlab-sablier.plugin.sablier.blocking.timeout=5m"
       - "traefik.enable=true"
       - "traefik.http.routers.gitlab.rule=Host(`gitlab.anode.com`)"
       - "traefik.http.routers.gitlab.entrypoints=websecure"
       - "traefik.http.routers.gitlab.tls=true"
-      - "traefik.http.routers.gitlab.tls.certresolver=letsencrypt"
       - "traefik.http.services.gitlab.loadbalancer.server.port=80"
     networks:
       - anode-shared-network

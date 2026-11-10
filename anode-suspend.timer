@@ -1,0 +1,9 @@
+[Unit]
+Description=Check every 5 minutes whether the host can suspend
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

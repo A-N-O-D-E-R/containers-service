@@ -12,6 +12,14 @@ services:
       - PUID=${PUID:-1000}  # Customize user ID
       - PGID=${PGID:-1000}  # Customize group ID
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=note"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.note.middlewares=note-sablier"
+      - "traefik.http.middlewares.note-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.note-sablier.plugin.sablier.group=note"
+      - "traefik.http.middlewares.note-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.note-sablier.plugin.sablier.dynamic.displayName=Note"
       - "traefik.enable=true"
       - "traefik.http.routers.note.rule=Host(`note.anode.com`)"
       - "traefik.http.routers.note.entrypoints=websecure"

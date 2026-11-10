@@ -5,7 +5,7 @@ script_path=$(realpath "$0")
 dir=$(dirname "$script_path")
 systemd_dest="/etc/systemd/system"
 
-EXCLUDED=(traefik db cache)
+EXCLUDED=(traefik sablier db cache)
 
 check_os() {
   if [[ "$(uname -s)" != "Linux" ]]; then
@@ -30,7 +30,9 @@ check_deps() {
     missing+=(docker-compose)
   fi
 
-  command -v mkcert &>/dev/null || echo "warning: mkcert not found, required for local env"
+  command -v mkcert &>/dev/null || echo "warning: mkcert not found, required for TLS certificates"
+  command -v rclone &>/dev/null || echo "warning: rclone not found, required for anode-backup"
+  command -v tailscale &>/dev/null || echo "warning: tailscale not found, required for remote access"
 
   [[ ${#missing[@]} -eq 0 ]] && return 0
 
@@ -74,7 +76,7 @@ needs_cache() {
 }
 
 link_units() {
-  for unit in "$dir"/*.service "$dir"/*.target; do
+  for unit in "$dir"/*.service "$dir"/*.target "$dir"/*.timer; do
     [[ -e "$unit" ]] || continue
     dest="$systemd_dest/$(basename "$unit")"
     ln -sf "$unit" "$dest"
@@ -96,7 +98,7 @@ generate_overrides() {
     drop_in="$systemd_dest/anode-container@${app}.service.d/order.conf"
     mkdir -p "$(dirname "$drop_in")"
 
-    local after="anode-container@traefik.service"
+    local after="anode-container@traefik.service anode-container@sablier.service"
     local requires=""
 
     needs_db "$app" && after+=" anode-container@db.service" && requires+=" anode-container@db.service"
@@ -114,11 +116,16 @@ generate_overrides() {
 
 check_os
 check_deps
-sudo install -m 755 ./manage-container.sh /usr/local/bin/anode-container
+# symlinks: the scripts resolve the repo (compose files, .env-*) through realpath
+ln -sf "$dir/manage-container.sh" /usr/local/bin/anode-container
+ln -sf "$dir/scripts/backup.sh" /usr/local/bin/anode-backup
+ln -sf "$dir/scripts/auto-suspend.sh" /usr/local/bin/anode-suspend
 link_units
 generate_overrides
 systemctl daemon-reload
 echo "done"
+echo "enable backups:      systemctl enable --now anode-backup.timer"
+echo "enable auto-suspend: systemctl enable --now anode-suspend.timer  (check Wake-on-LAN first, see README)"
 
 ### for backup
 # sudo apt install s3fs

@@ -10,11 +10,18 @@ services:
     volumes:
       - ${BACKUP_DIR}/freecad:/config
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=freecad"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.freecad.middlewares=freecad-sablier"
+      - "traefik.http.middlewares.freecad-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.freecad-sablier.plugin.sablier.group=freecad"
+      - "traefik.http.middlewares.freecad-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.freecad-sablier.plugin.sablier.dynamic.displayName=FreeCAD"
       - "traefik.enable=true"
       - "traefik.http.routers.freecad.rule=Host(`cad.anode.com`)"
       - "traefik.http.routers.freecad.entrypoints=websecure"
       - "traefik.http.routers.freecad.tls=true"
-      - "traefik.http.routers.freecad.tls.certresolver=letsencrypt"
       - "traefik.http.services.freecad.loadbalancer.server.port=3000"
     networks:
       - anode-shared-network

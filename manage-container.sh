@@ -7,7 +7,7 @@ dir=$(dirname "$script_path")
 
 usage() {
   echo "Usage: $0 <command> <app-name|*> <env>"
-  echo "Commands: start, stop"
+  echo "Commands: start, stop (keeps containers, required by Sablier), down (removes containers)"
   echo "Use '*' as app-name to target all apps for the given env."
   exit 1
 }
@@ -20,6 +20,12 @@ command="$1"
 app="$2"
 env="$3"
 env_file="$dir/.env-${env}"
+
+if [[ -f "$env_file" ]]; then
+  set -a
+  source "$env_file"
+  set +a
+fi
 
 if ! sudo -n true 2>/dev/null; then
   echo "Error: This script requires sudo privileges. Please run as a user with sudo access."
@@ -36,14 +42,12 @@ if ! command -v docker-compose &>/dev/null && ! docker compose version &>/dev/nu
   exit 1
 fi
 
-setup_local_requirements() {
+# anode.com is private (Tailscale / LAN only): both envs use the mkcert wildcard.
+setup_certs() {
   local domain="anode.com"
-  [[ -f "$env_file" ]] && source "$env_file"
-  local cert_dir="$CERTS_DIR"
-  local hosts=()
-  while IFS= read -r host; do
-    hosts+=("$host")
-  done < <(find "$(dirname "$0")" -name "compose-local.yml" -exec grep -hoP "Host\(\`\K[^\`]+" {} \; | grep -v '<' | sort -u)
+  local cert_dir="${CERTS_DIR:?set CERTS_DIR in $env_file}"
+  [[ -f "$cert_dir/_wildcard.${domain}+1.pem" ]] && return 0
+
   if ! command -v mkcert >/dev/null 2>&1; then
     echo "Error: mkcert is not available."
     exit 1
@@ -54,26 +58,26 @@ setup_local_requirements() {
   fi
 
   mkdir -p "$cert_dir"
+  (cd "$cert_dir" && mkcert "*.${domain}" "$domain")
+  echo "Created wildcard certificate in $cert_dir (CA: $(mkcert -CAROOT)/rootCA.pem)"
+}
 
-  if [ ! -f "$cert_dir/_wildcard.${domain}+1.pem" ]; then
-    mkcert "*.${domain}" "$domain"
-    mv ./*.pem "$cert_dir/" 2>/dev/null || true
-    mv ./*.key "$cert_dir/" 2>/dev/null || true
-  fi
-
-  export CA_BUNDLE="$(mkcert -CAROOT)/rootCA.pem"
+setup_local_hosts() {
+  local hosts=()
+  while IFS= read -r host; do
+    hosts+=("$host")
+  done < <(find "$dir" -name "compose-local.yml" -exec grep -hoP "Host\(\`\K[^\`]+" {} \; | grep -v '<' | sort -u)
 
   for host in "${hosts[@]}"; do
     if ! grep -q "127.0.0.1 $host" /etc/hosts; then
       echo "127.0.0.1 $host" | sudo tee -a /etc/hosts > /dev/null
     fi
   done
-
-  echo "Setup complete"
 }
 
-if [[ "$env" == "local" ]]; then
-  setup_local_requirements
+if [[ "$command" == "start" ]]; then
+  setup_certs
+  [[ "$env" == "local" ]] && setup_local_hosts
 fi
 
 compose_cmd() {
@@ -89,7 +93,7 @@ compose_cmd() {
 
 
 ensure_S3_mounted() {
-  if docker ps --format '{{.Names}}' | grep -qx 'garage'; then
+  if sudo docker ps --format '{{.Names}}' | grep -qx 'garage'; then
     echo "garage is running, proceeding to mount S3 storage..."
   else
     echo "garage is NOT running"
@@ -160,6 +164,10 @@ run_for_app() {
       ;;
     stop)
       echo "Stopping '$app_name' ($env)..."
+      compose_cmd "$app_name" "$compose_file" stop
+      ;;
+    down)
+      echo "Removing '$app_name' ($env)..."
       compose_cmd "$app_name" "$compose_file" down
       ;;
   esac
@@ -175,8 +183,8 @@ if [[ "$app" == "*" ]]; then
     echo "Error: No compose-${env}.yml files found under '$dir'."
     exit 1
   fi
-  # Enforce start order: traefik → db → s3 → rest (reversed for stop)
-  priority=(traefik db cache nosql garage)
+  # Enforce start order: traefik → sablier → db → s3 → rest (reversed for stop)
+  priority=(traefik sablier db cache nosql garage)
   ordered=()
   for p in "${priority[@]}"; do
     for a in "${all_apps[@]}"; do
@@ -188,7 +196,7 @@ if [[ "$app" == "*" ]]; then
     for p in "${priority[@]}"; do [[ "$a" == "$p" ]] && skip=true; done
     $skip || ordered+=("$a")
   done
-  if [[ "$command" == "stop" ]]; then
+  if [[ "$command" != "start" ]]; then
     mapfile -t apps < <(printf '%s\n' "${ordered[@]}" | tac)
   else
     apps=("${ordered[@]}")
@@ -198,7 +206,7 @@ if [[ "$app" == "*" ]]; then
   done
 else
   case "$command" in
-    start|stop) run_for_app "$app" ;;
+    start|stop|down) run_for_app "$app" ;;
     *)
       echo "Error: Unknown command '$command'"
       usage

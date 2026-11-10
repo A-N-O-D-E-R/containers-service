@@ -1,0 +1,10 @@
+[Unit]
+Description=Anode offsite backup (rclone crypt)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ENV=local
+ExecStart=/usr/local/bin/anode-backup ${ENV}

@@ -7,6 +7,9 @@ services:
       - ${S3_DATA_DIR}/calcom/redis:/data
     networks:
       - calcom
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=calcom"
 
   calcom:
     image: calcom.docker.scarf.sh/calcom/cal.com:latest
@@ -31,11 +34,18 @@ services:
       - CALCOM_TELEMETRY_DISABLED=1
       - NODE_ENV=production
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=calcom"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.calcom.middlewares=calcom-sablier"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.group=calcom"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.calcom-sablier.plugin.sablier.dynamic.displayName=Cal.com"
       - "traefik.enable=true"
       - "traefik.http.routers.calcom.rule=Host(`cal.anode.com`)"
       - "traefik.http.routers.calcom.entrypoints=websecure"
       - "traefik.http.routers.calcom.tls=true"
-      - "traefik.http.routers.calcom.tls.certresolver=letsencrypt"
       - "traefik.http.services.calcom.loadbalancer.server.port=3000"
     networks:
       - calcom

@@ -18,11 +18,18 @@ services:
       - immich-redis
       - immich-postgres
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=immich"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.immich.middlewares=immich-sablier"
+      - "traefik.http.middlewares.immich-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.immich-sablier.plugin.sablier.group=immich"
+      - "traefik.http.middlewares.immich-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.immich-sablier.plugin.sablier.blocking.timeout=5m"
       - "traefik.enable=true"
       - "traefik.http.routers.immich.rule=Host(`photos.anode.com`)"
       - "traefik.http.routers.immich.entrypoints=websecure"
       - "traefik.http.routers.immich.tls=true"
-      - "traefik.http.routers.immich.tls.certresolver=letsencrypt"
       - "traefik.http.services.immich.loadbalancer.server.port=2283"
     networks:
       - immich
@@ -36,6 +43,9 @@ services:
       - ${S3_DATA_DIR}/immich/model-cache:/cache
     networks:
       - immich
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=immich"
 
   immich-redis:
     image: docker.io/valkey/valkey:9-alpine
@@ -45,6 +55,9 @@ services:
       test: redis-cli ping || exit 1
     networks:
       - immich
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=immich"
 
   immich-postgres:
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
@@ -65,6 +78,9 @@ services:
       retries: 5
     networks:
       - immich
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=immich"
 
 networks:
   immich:

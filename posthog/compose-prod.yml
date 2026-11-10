@@ -28,6 +28,9 @@ services:
       - posthog-postgres:/var/lib/postgresql/data
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-redis:
     image: redis:7.2-alpine
@@ -44,6 +47,9 @@ services:
       - posthog-redis:/data
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-clickhouse:
     image: clickhouse/clickhouse-server:26.6.1.1193
@@ -61,6 +67,9 @@ services:
       - posthog-clickhouse:/var/lib/clickhouse
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-zookeeper:
     image: zookeeper:3.7.0
@@ -76,6 +85,9 @@ services:
       - posthog-zookeeper-logs:/logs
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-kafka:
     image: docker.io/redpandadata/redpanda:v25.1.9
@@ -104,6 +116,9 @@ services:
       - posthog-kafka:/bitnami/kafka
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-objectstorage:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
@@ -119,6 +134,9 @@ services:
       - posthog-objectstorage:/data
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
   posthog-web:
     image: posthog/posthog:latest
@@ -155,11 +173,18 @@ services:
       posthog-objectstorage:
         condition: service_started
     labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
+      - "traefik.docker.allownonrunning=true"
+      - "traefik.http.routers.posthog.middlewares=posthog-sablier"
+      - "traefik.http.middlewares.posthog-sablier.plugin.sablier.sablierUrl=http://sablier:10000"
+      - "traefik.http.middlewares.posthog-sablier.plugin.sablier.group=posthog"
+      - "traefik.http.middlewares.posthog-sablier.plugin.sablier.sessionDuration=30m"
+      - "traefik.http.middlewares.posthog-sablier.plugin.sablier.blocking.timeout=5m"
       - "traefik.enable=true"
       - "traefik.http.routers.posthog.rule=Host(`posthog.anode.com`)"
       - "traefik.http.routers.posthog.entrypoints=websecure"
       - "traefik.http.routers.posthog.tls=true"
-      - "traefik.http.routers.posthog.tls.certresolver=letsencrypt"
       - "traefik.http.services.posthog.loadbalancer.server.port=8000"
     networks:
       - posthog
@@ -189,6 +214,9 @@ services:
       - posthog-web
     networks:
       - posthog
+    labels:
+      - "sablier.enable=true"
+      - "sablier.group=posthog"
 
 volumes:
   posthog-postgres:

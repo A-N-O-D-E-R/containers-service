@@ -1,0 +1,20 @@
+services:
+  sablier:
+    image: sablierapp/sablier:1.20.0
+    container_name: sablier
+    restart: unless-stopped
+    command:
+      - start
+      - --provider.name=docker
+      # containers started by compose/restart policy get one session, then sleep
+      - --provider.auto-stop-on-startup=false
+      - --provider.auto-warm-externally-started=true
+      - --sessions.default-duration=30m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - anode-shared-network
+
+networks:
+  anode-shared-network:
+    external: true
